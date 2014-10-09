@@ -1,32 +1,45 @@
-var graphLabels = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
-var graphData =   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+// settings
+var graphSize = 50;
+
+var graphLabels = [];
+var graphData = [];
+var graphBaseLine = [];
+for (var i = 0; i < graphSize; ++i) {
+	graphLabels[i] = "";
+	graphData[i] = 0;
+	graphBaseLine[i] = 0;
+}
 
 var pendingMoodQueue = [];
-var lastMoodPushed = 0;
 
-// GRAPH
+var playing = true;
 
-// Get the context of the canvas element we want to select
+// set up graph
+$("#moodChart").html("<canvas id=\"moodChart\" height=\"400\" width=\"710\"></canvas>");
 var ctx = document.getElementById("moodChart").getContext("2d");
 
 var data = {
     labels: graphLabels,
     datasets: [
         {
-            label: "Live Mood Dataset",
-            fillColor: "rgba(20,150,220,0.2)",
-            strokeColor: "rgba(220,220,220,1)",
-            pointColor: "rgba(220,220,220,1)",
-            pointStrokeColor: "#fff",
-            pointHighlightFill: "#ffaaaa",
-            pointHighlightStroke: "rgba(220,220,220,1)",
             data: graphData
-        }
+        },
+		{
+			data: graphBaseLine
+		}
     ]
 };
 
-var myLineChart = new Chart(ctx).Line(data, {
-    showScale: true
+new Chart(ctx).Line(data, {
+	animation: false,
+	scaleShowGridLines: false,
+	scaleShowLabels: false,
+	showScale: true,
+	scaleOverride: true,
+	scaleStartValue: -100,
+	scaleStepWidth: 100,
+	scaleSteps: 2,
+	scaleLabel: "<%=value%>"
 });
 
 redraw = function() {
@@ -34,34 +47,43 @@ redraw = function() {
     var data = {
         labels: graphLabels,
         datasets: [
+			{
+				fillColor: "transparent",
+				strokeColor: "#c0c0c0",
+				data: graphBaseLine
+			},
             {
-                label: "Live Mood Dataset",
-                fillColor: "rgba(20,150,220,0.2)",
-                strokeColor: "rgba(220,220,220,1)",
-                pointColor: "rgba(220,220,220,1)",
-                pointStrokeColor: "#fff",
-                pointHighlightFill: "#ffaaaa",
-                pointHighlightStroke: "rgba(220,220,220,1)",
+				fillColor: "transparent",
+				strokeColor: "#333333",
                 data: graphData
             }
         ]
     };
 
-    var myLineChart = new Chart(ctx).Line(data, {
+    new Chart(ctx).Line(data, {
         animation: false,
         scaleShowGridLines: false,
-        scaleShowLabels: false
+        scaleShowLabels: true,
+		showTooltips: false,
+		showScale: true,
+		scaleOverride: true,
+		scaleStartValue: -100,
+		scaleStepWidth: 25,
+		scaleSteps: 8,
+		scaleLabel: "<%=(value==100?'☀':(value==-100?'☂':(value==0?'☁':'')))%>",
+		scaleFontSize: 32,
+		scaleFontStyle: "bold",
+		pointDot: false
     });
-
-    $("#moodChart").html("<canvas id=\"moodChart\" height=\"400\" width=\"710\"></canvas>");
 };
 
-// Add a tweet to the table
-
+// add tweet
 addTweet = function(tweet_message, mood) {
+	// add mood to pending queue
+    pendingMoodQueue.push(mood);
 
+	// determine display
     var style;
-
     if(mood <= -60) {
         style = "super-danger";
     } else if (mood <= -20) {
@@ -73,72 +95,69 @@ addTweet = function(tweet_message, mood) {
     } else {
         style = "super-success";
     }
-    
-    pendingMoodQueue.push(mood);
-    
-	$('<tr class="' + style + '"><td>' + tweet_message + '</td><td>' + mood + '</td></tr>').prependTo('tbody');
+
+	$('<tr class="' + style + '"><td>' + tweet_message + '</td><td style="text-align: center;">' + mood + '</td></tr>').prependTo('#tweets-table tbody');
+	$('#tweets-table').find('tbody').find('tr').slice(20,1000).remove();
 };
 
-// Add emojis
+// add emoji
 addEmoji = function(imgLink) {
-    console.log(imgLink);
-    $('<img src="static/emoji-data/img-hangouts-28/' + imgLink + '" />').prependTo('div#emojis-section p');
+    $('<img src="static/emoji-data/img-hangouts-28/' + imgLink + '" />&nbsp;&nbsp;&nbsp;').prependTo('div#emojis-section p');
+	$('div#emojis-section p').find('img').slice(40,42).remove();
 };
 
+// process all moods that have arrived since the last cycle
 processMoodQueue = function() {
-    
-    var averageMood = lastMoodPushed;
-    
-    if(processMoodQueue.length != 0) {
-        var sum = 0;
-        for(var i = 0; i < processMoodQueue.length; ++i) {
-            sum += processMoodQueue[i];
-        }
-        
-        averageMood = Math.round(sum/processMoodQueue.length);
-        processMoodQueue = [];
-    }
-    
-    graphLabels.shift();
-    graphData.shift();
-    
-    graphLabels.push("");
-    graphData.push(averageMood);
 
-    redraw();
-    
-    lastMoodPushed = averageMood;
-    
+	// calc average of latest moods
+    var averageMood = 0;
+	var newSound = false;
+    if(pendingMoodQueue.length != 0) {
+		newSound = true;
+        var sum = 0;
+        for(var i = 0; i < pendingMoodQueue.length; ++i) {
+            sum += pendingMoodQueue[i];
+        }
+        averageMood = Math.round(sum/pendingMoodQueue.length);
+		pendingMoodQueue = [];
+    }
+
+	if (playing) {
+		// play sound
+		if (newSound) playSound(averageMood);
+
+		// add to graph
+		graphData.shift();
+		graphData.push(averageMood);
+		redraw();
+	}
+
+	// repeat
     setTimeout(function() {
         processMoodQueue();
-    }, 1000);
-}
+    }, 100);
+};
 
 processMoodQueue();
 
-$(function () {
-    $('.tltp').tooltip();
+// play/pause button
+$('#play-btn').click(function() {
+	if ($(this).hasClass('glyphicon-play') ) {
+		playing = true;
+		$(this).removeClass('glyphicon-play');
+		$(this).addClass('glyphicon-pause');
+	} else {
+		playing = false;
+		$(this).removeClass('glyphicon-pause');
+		$(this).addClass('glyphicon-play');
+	}
 });
 
-$('#play-btn').click(function() {
-    if ($(this).hasClass('glyphicon-play') ) {
+// change keyword
+changeKeyword = function (new_keyword) {
+	NT.changeKeyword(new_keyword);
+};
 
-            $(this).removeClass('glyphicon-play');
-            $(this).addClass('glyphicon-pause');
-            $(this).attr('title', 'Click to play music')
-                      .tooltip('fixTitle')
-                      .data('bs.tooltip')
-                      .$tip.find('.tooltip-inner')
-                      .text('Click to play music');
-
-    } else if ($(this).hasClass('glyphicon-pause')) {
-
-        $(this).removeClass('glyphicon-pause');
-        $(this).addClass('glyphicon-play');
-        $(this).attr('title', 'Click to stop music')
-                      .tooltip('fixTitle')
-                      .data('bs.tooltip')
-                      .$tip.find('.tooltip-inner')
-                      .text('Click to stop music');
-    }
+$('#change-btn').click(function (){
+	changeKeyword(prompt("New keyword?"));
 });

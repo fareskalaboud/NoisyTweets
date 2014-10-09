@@ -1,6 +1,4 @@
-body {
- margin-top: 20px;
-}
+/* emojis */
 
 .emoji-row {
     padding-top: 5px;
@@ -23,6 +21,13 @@ body {
     width: 100%;
     margin:10px 0;
     white-space: nowrap;
+}
+
+/* tweets */
+
+table#tweets-table tbody tr td {
+    word-wrap: break-word;
+    word-break: break-all;
 }
 
 .table > thead > tr > td.super-success,
@@ -53,4 +58,44 @@ body {
 .table > tbody > tr.super-danger > th,
 .table > tfoot > tr.super-danger > th {
   background-color: #EE7979;
+}
+
+/* fonts */
+
+h1, h2 {
+    margin: 10px 0;
+    text-align: center;
+}
+
+h1 {
+    font-size: 2.5em;
+}
+
+h2 {
+    font-size: 1.2em;
+}
+
+/* buttons */
+
+div#pause_container {
+    position: absolute;
+    top: 50px;
+    right: 80px;
+}
+
+div#change_container {
+    position: absolute;
+    top: 50px;
+    left: 80px;
+}
+
+div#pause_container span, div#change_container span {
+    font-size: 3em;
+    font-weight: bold;
+    color: #317eac;
+    cursor: pointer;
+}
+
+div#pause_container span:hover, div#change_container span:hover {
+    color: #333333;
 }

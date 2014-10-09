@@ -8,7 +8,9 @@ from tweepy import Stream
 
 from config import *
 from flaskserver import start_server
+from flaskserver import mate
 from tweetanalyser import TweetAnalyser
+import twilioclient
 
 class StreamHandler(StreamListener):
 
@@ -17,7 +19,11 @@ class StreamHandler(StreamListener):
 
     def on_data(self, data):
         datadict = json.loads(data)
-        self._analyser.incoming_tweet(datadict['text'])
+        try:
+            self._analyser.incoming_tweet(datadict['text'])
+        except KeyError:
+            # no text - skip
+            pass
         return True
 
     def on_error(self, status):
@@ -26,6 +32,7 @@ class StreamHandler(StreamListener):
 class NoisyTweets:
 
     def __init__(self, auth, keyword):
+        mate.set_keyword(keyword)
         stream = Stream(auth, StreamHandler(TweetAnalyser()))
         stream.filter(track=[keyword])
 
@@ -35,6 +42,8 @@ try:
         auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 
         thread.start_new_thread(start_server, ())
+        if len(sys.argv) > 2:
+            twilioclient.make_call(sys.argv[2])
         NoisyTweets(auth, sys.argv[1])
 except KeyboardInterrupt:
     print 'Bye bye!'
